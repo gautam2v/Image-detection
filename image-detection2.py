@@ -2,18 +2,14 @@ import cv2
 import numpy as np
 import tkinter as tk
 
-# Replace this with the URL of your IP webcam stream
-# Example: "http://192.168.1.2:8080/video"
-ip_webcam_url = "http://<IP>:<Port>/video"
+# Initialize the video stream from the laptop's built-in webcam
+camera = cv2.VideoCapture(0)
 
-# Initialize the video stream from the IP webcam
-camera = cv2.VideoCapture(ip_webcam_url)
+if not camera.isOpened():
+    print("Error: Could not access the webcam.")
+    exit()
 
 # Create a simple Tkinter window for controlling image processing parameters
-def nothing(x):
-    pass
-
-# Create the main window
 root = tk.Tk()
 root.title("Real-Time Dot Detection Controls")
 
@@ -51,11 +47,46 @@ contrast = tk.Scale(root, from_=0, to=200, orient="horizontal", label="Contrast"
 contrast.set(100)  # 100 means no change in contrast
 contrast.pack()
 
+# Function to detect and count dots
+def detect_dots(frame):
+    # Convert to grayscale
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # Apply Gaussian Blur to reduce noise
+    blurred = cv2.GaussianBlur(gray, (9, 9), 2)
+
+    # Use Hough Circle Transform to detect circles (dots)
+    circles = cv2.HoughCircles(
+        blurred,
+        cv2.HOUGH_GRADIENT,
+        dp=1.2,  # Inverse ratio of resolution
+        minDist=20,  # Minimum distance between circles
+        param1=50,  # Upper threshold for edge detection
+        param2=30,  # Threshold for center detection
+        minRadius=5,  # Minimum radius of circles
+        maxRadius=30  # Maximum radius of circles
+    )
+
+    dot_count = 0
+    if circles is not None:
+        circles = np.round(circles[0, :]).astype("int")
+        dot_count = len(circles)
+
+        # Draw detected circles on the frame
+        for (x, y, r) in circles:
+            cv2.circle(frame, (x, y), r, (0, 255, 0), 2)  # Outer circle
+            cv2.circle(frame, (x, y), 2, (0, 0, 255), -1)  # Center point
+
+    # Display the number of dots on the frame
+    cv2.putText(frame, f"Dots Count: {dot_count}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+    return frame
+
 # Function to process the camera frame
 def process_frame():
     ret, frame = camera.read()
     if not ret:
-        print("Failed to capture frame from IP webcam. Exiting...")
+        print("Failed to capture frame from webcam. Exiting...")
         root.quit()
         return
 
@@ -81,45 +112,13 @@ def process_frame():
 
     # Apply the mask
     mask = cv2.inRange(hsv, lower_bound, upper_bound)
-    result = cv2.bitwise_and(adjusted_frame, adjusted_frame, mask=mask)
+    filtered_frame = cv2.bitwise_and(adjusted_frame, adjusted_frame, mask=mask)
 
-    # Detect LED circles using Hough Circle Transform
-    gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(gray, (9, 9), 2)
+    # Detect and count dots
+    processed_frame = detect_dots(filtered_frame)
 
-    dp = 1.5
-    minDist = max(15, min(frame.shape[:2]) // 30)
-    param1 = 60
-    param2 = 8
-    minRadius = 1
-    maxRadius = 15
-
-    circles = cv2.HoughCircles(
-        blurred,
-        cv2.HOUGH_GRADIENT,
-        dp=dp,
-        minDist=minDist,
-        param1=param1,
-        param2=param2,
-        minRadius=minRadius,
-        maxRadius=maxRadius
-    )
-
-    dot_count = 0
-    if circles is not None:
-        circles = np.round(circles[0, :]).astype("int")
-        dot_count = len(circles)
-
-        for idx, (x, y, r) in enumerate(circles, start=1):
-            cv2.circle(result, (x, y), r, (0, 255, 0), 2)
-            cv2.circle(result, (x, y), 2, (255, 0, 0), -1)
-            cv2.putText(result, str(idx), (x - 10, y - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
-
-    cv2.putText(result, f"LEDs Detected: {dot_count}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
-
-    # Show the result in a window
-    cv2.imshow("Real-Time LED Detection", result)
+    # Show the processed frame
+    cv2.imshow("Real-Time Dot Detection", processed_frame)
 
     # Exit on 'q' key press
     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -128,7 +127,7 @@ def process_frame():
     # Keep processing frames
     root.after(10, process_frame)
 
-# Start processing frames from the IP webcam
+# Start processing frames from the webcam
 process_frame()
 
 # Start the Tkinter event loop
