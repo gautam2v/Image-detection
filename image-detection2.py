@@ -2,8 +2,12 @@ import cv2
 import numpy as np
 import tkinter as tk
 
-# Initialize the camera
-camera = cv2.VideoCapture(0)  # Use 0 for default webcam, or change to another index for external cameras
+# Replace this with the URL of your IP webcam stream
+# Example: "http://192.168.1.2:8080/video"
+ip_webcam_url = "http://<IP>:<Port>/video"
+
+# Initialize the video stream from the IP webcam
+camera = cv2.VideoCapture(ip_webcam_url)
 
 # Create a simple Tkinter window for controlling image processing parameters
 def nothing(x):
@@ -51,7 +55,7 @@ contrast.pack()
 def process_frame():
     ret, frame = camera.read()
     if not ret:
-        print("Failed to capture frame from camera. Exiting...")
+        print("Failed to capture frame from IP webcam. Exiting...")
         root.quit()
         return
 
@@ -124,7 +128,7 @@ def process_frame():
     # Keep processing frames
     root.after(10, process_frame)
 
-# Start processing frames from the webcam
+# Start processing frames from the IP webcam
 process_frame()
 
 # Start the Tkinter event loop
