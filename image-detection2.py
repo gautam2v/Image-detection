@@ -47,8 +47,17 @@ contrast = tk.Scale(root, from_=0, to=200, orient="horizontal", label="Contrast"
 contrast.set(100)  # 100 means no change in contrast
 contrast.pack()
 
+# Create sliders for circle radius range
+min_radius_slider = tk.Scale(root, from_=1, to=50, orient="horizontal", label="Min Radius", sliderlength=20)
+min_radius_slider.set(5)  # Default minimum radius
+min_radius_slider.pack()
+
+max_radius_slider = tk.Scale(root, from_=5, to=100, orient="horizontal", label="Max Radius", sliderlength=20)
+max_radius_slider.set(30)  # Default maximum radius
+max_radius_slider.pack()
+
 # Function to detect and count dots
-def detect_dots(frame):
+def detect_dots(frame, min_radius, max_radius):
     # Convert to grayscale
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -63,8 +72,8 @@ def detect_dots(frame):
         minDist=20,  # Minimum distance between circles
         param1=50,  # Upper threshold for edge detection
         param2=30,  # Threshold for center detection
-        minRadius=5,  # Minimum radius of circles
-        maxRadius=30  # Maximum radius of circles
+        minRadius=min_radius,  # Minimum radius of circles
+        maxRadius=max_radius  # Maximum radius of circles
     )
 
     dot_count = 0
@@ -99,6 +108,8 @@ def process_frame():
     vh_value = vh.get()
     brightness_value = brightness.get()
     contrast_value = contrast.get() / 100.0  # Normalize contrast (0-200 -> 0-2)
+    min_radius = min_radius_slider.get()
+    max_radius = max_radius_slider.get()
 
     # Apply brightness and contrast adjustments
     adjusted_frame = cv2.convertScaleAbs(frame, alpha=contrast_value, beta=brightness_value)
@@ -115,7 +126,7 @@ def process_frame():
     filtered_frame = cv2.bitwise_and(adjusted_frame, adjusted_frame, mask=mask)
 
     # Detect and count dots
-    processed_frame = detect_dots(filtered_frame)
+    processed_frame = detect_dots(filtered_frame, min_radius, max_radius)
 
     # Show the processed frame
     cv2.imshow("Real-Time Dot Detection", processed_frame)
